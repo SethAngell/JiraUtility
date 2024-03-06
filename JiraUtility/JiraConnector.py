@@ -35,7 +35,7 @@ class JiraTicket(object):
         )
         self.name = ticket_fields["summary"]
         self.product_copy = ticket_fields["customfield_13332"]
-        self.url = f'{BASE_URL}{rest_api_response['key']}'
+        self.url = f'{BASE_URL}{rest_api_response["key"]}'
         self.status = ticket_fields["status"]["name"]
 
     def display_ticket_details(self):
