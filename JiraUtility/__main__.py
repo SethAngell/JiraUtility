@@ -4,6 +4,10 @@ import logging
 import argparse
 from argparse import Namespace
 import sys
+from rich import print
+import webbrowser
+import json
+import pathlib
 
 from JiraConnector import (
     getTicket,
@@ -13,6 +17,8 @@ from JiraConnector import (
     UnauthorizedActionException,
     ForbiddenActionException,
     TicketNotFoundException,
+    getCurrentSprintInfo,
+    getBoardInfo,
 )
 from LabelMaker import find_labels_in_section, Label, NoLabelsFoundError
 
@@ -59,17 +65,23 @@ def getTicketNumber() -> str:
             )
 
 
+def getBoardId():
+    board_id = input("👋 What board would you like to work with? [1234]: ")
+    return board_id
+
+
 def getJiraTicket(ticket_number: str) -> JiraTicket:
     return getTicket(ticket_number=ticket_number)
 
 
 def generateLabelsFromTicket(ticket: JiraTicket) -> list[Label]:
+    logging.debug(ticket.product_copy)
     return find_labels_in_section(ticket.product_copy)
 
 
 def handleLabelCreation(args: Namespace):
     ticket_number = args.ticket if args.ticket is not None else getTicketNumber()
-    format = args.format
+    format = args.format if args.format is not None else "xml"
     copy_to_clipboard = args.copy_to_clipboard
 
     ticket = None
@@ -105,13 +117,35 @@ def handleLabelCreation(args: Namespace):
         )
         sys.exit(1)
 
-    if format == "xml":
+    if format.lower() == "xml":
         label_str = "".join([label.get_label_as_xml() for label in labels])
 
     if copy_to_clipboard:
         subprocess.run("pbcopy", text=True, input=label_str)
     else:
         print(label_str)
+
+    print(f"🎊 {len(labels)} labels generated!")
+
+
+def iterate_over_tickets(tickets: list[JiraTicket]):
+    for ticket in tickets:
+        webbrowser.open_new_tab(ticket.url)
+        print(ticket.get_ticket_details())
+        early_exit = input("Next Ticket? [Q to quit]: ")
+        if early_exit.lower() == "q":
+            sys.exit(0)
+
+
+def getSprintInfo(boardId):
+    boardResponse = getBoardInfo(boardId)
+    print(boardResponse.json())
+    response = getCurrentSprintInfo(boardId)
+    print(response.status_code)
+    results = response.json()
+    path = pathlib.Path(__file__).parent.resolve()
+    with open(f"{path}/data/current-sprints.json", "w") as ofile:
+        json.dump(results, ofile)
 
 
 def verifyEnvironment():
@@ -156,6 +190,15 @@ if __name__ == "__main__":
         help="Get all tickets assigned to the current user",
     )
     current_tickets_parser.set_defaults(which="current-tickets")
+    current_tickets_parser.add_argument(
+        "--iterate",
+        action="store_true",
+        help="Whether or not to iterate over each ticket assigned to the current user.",
+    )
+    sprints_parser = subparsers.add_parser(
+        "current-sprint", help="Get all current sprints"
+    )
+    sprints_parser.set_defaults(which="current-sprint")
 
     _configure_logging()
 
@@ -166,4 +209,13 @@ if __name__ == "__main__":
         handleLabelCreation(args)
     elif args.which == "current-tickets":
         verifyEnvironment()
-        getCurrentlyAssignedTickets()
+        tickets = getCurrentlyAssignedTickets()
+        if args.iterate:
+            iterate_over_tickets(tickets)
+        else:
+            for ticket in tickets:
+                print(ticket.get_ticket_details())
+    elif args.which == "current-sprint":
+        verifyEnvironment()
+        boardId = getBoardId()
+        getSprintInfo(boardId)

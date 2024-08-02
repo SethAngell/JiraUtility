@@ -1,0 +1,25 @@
+[project]
+name = "JiraUtility"
+version = "0.0.1"
+authors = [
+  { name="Seth Angell", email="work@sethangell.com" },
+]
+description = "For fun little jira tasks"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    'requests==2.31.0',
+    'rich==13.7.1'
+]
+
+[project.scripts]
+jira-utility = "JiraUtility.main:main"
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"

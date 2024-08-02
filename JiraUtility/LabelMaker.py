@@ -82,9 +82,7 @@ class Label(object):
         return self.__str__()
 
 
-def find_labels_in_section(raw_labels: str) -> list[Label]:
-    split_labels = [part for part in raw_labels.split("\n") if part != ""]
-
+def find_labels_in_section(split_labels: str) -> list[Label]:
     current_label = Label()
     valid_labels = []
 
@@ -101,6 +99,9 @@ def find_labels_in_section(raw_labels: str) -> list[Label]:
         else:
             logging.debug(current_label)
             current_label.extract_value_from_response(pattern.search(line))
+
+    if current_label.get_pattern_for_next_needed_attribute() == "VALID":
+        valid_labels.append(current_label)
 
     if len(valid_labels) == 0:
         raise NoLabelsFoundError
